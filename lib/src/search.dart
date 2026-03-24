@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
@@ -97,15 +96,16 @@ class _SearchAutocompleteState<T> extends State<SearchAutocomplete<T>>
     with WidgetsBindingObserver {
   final _controller = TextEditingController();
   bool _showDropdown = false;
-
-  final _optionsStrCtr = StreamController<List<T>>.broadcast();
+  bool _trackingPosition = false;
 
   OverlayEntry? _overlayEntry;
 
   final _positionForm = ValueNotifier(const PositionForm());
 
   void _insertOverlay(BuildContext context) {
-    _overlayEntry?.remove();
+    final previousEntry = _overlayEntry;
+    _overlayEntry = null;
+    previousEntry?.remove();
 
     _positionForm.value = PositionForm.fromRect(context._globalPaintBounds);
 
@@ -116,10 +116,8 @@ class _SearchAutocompleteState<T> extends State<SearchAutocomplete<T>>
         return ValueListenableBuilder<PositionForm>(
           valueListenable: _positionForm,
           builder: (context, positionForm, child) {
-            final future = Future.wait([
-              WidgetsBinding.instance.waitUntilFirstFrameRasterized,
-              WidgetsBinding.instance.waitUntilFirstFrameRasterized,
-            ]);
+            final future =
+                WidgetsBinding.instance.waitUntilFirstFrameRasterized;
 
             return SizedBox.fromSize(
               size: MediaQuery.sizeOf(context),
@@ -159,14 +157,17 @@ class _SearchAutocompleteState<T> extends State<SearchAutocomplete<T>>
   }
 
   void _removeOverlay() {
-    _overlayEntry?.remove();
+    _stopPositionTracking();
+    final entry = _overlayEntry;
     _overlayEntry = null;
+    entry?.remove();
     _showDropdown = false;
   }
 
   void _showOverlay() {
     _showDropdown = true;
     _insertOverlay(context);
+    _startPositionTracking();
   }
 
   _updateInitValue() {
@@ -187,18 +188,22 @@ class _SearchAutocompleteState<T> extends State<SearchAutocomplete<T>>
   }
 
   void _onSelect(T option) {
+    _controller.removeListener(_filterOptions);
+    _controller.text = widget.getString(option);
+    _controller.addListener(_filterOptions);
     _postSelectAction();
     widget.onSelected?.call(option);
   }
 
   void _postSelectAction() {
+    FocusScope.of(context).unfocus();
     const duration = Duration(milliseconds: 150);
-    Future.delayed(duration).then((value) {
+    Future.delayed(duration).then((_) {
+      if (!mounted) return;
       setState(() {
         _removeOverlay();
       });
     });
-    FocusScope.of(context).unfocus();
   }
 
   void _tapOutside() {
@@ -219,7 +224,18 @@ class _SearchAutocompleteState<T> extends State<SearchAutocomplete<T>>
     _positionForm.value = positionForm;
   }
 
+  void _startPositionTracking() {
+    if (_trackingPosition) return;
+    _trackingPosition = true;
+    WidgetsBinding.instance.scheduleFrameCallback(_onFrameCallback);
+  }
+
+  void _stopPositionTracking() {
+    _trackingPosition = false;
+  }
+
   void _onFrameCallback(Duration timeStamp) {
+    if (!_trackingPosition || !mounted) return;
     _updatePosition();
     WidgetsBinding.instance.scheduleFrameCallback(_onFrameCallback);
   }
@@ -231,7 +247,6 @@ class _SearchAutocompleteState<T> extends State<SearchAutocomplete<T>>
     final value = widget.initValue;
     _controller.text = value != null ? widget.getString(value) : '';
     _controller.addListener(_filterOptions);
-    WidgetsBinding.instance.scheduleFrameCallback(_onFrameCallback);
   }
 
   @override
@@ -244,9 +259,10 @@ class _SearchAutocompleteState<T> extends State<SearchAutocomplete<T>>
   @override
   void didUpdateWidget(SearchAutocomplete<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
-    WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       if (oldWidget.options != widget.options && _showDropdown) {
-        _optionsStrCtr.add(widget.options);
+        _overlayEntry?.markNeedsBuild();
       }
       if (oldWidget.initValue != widget.initValue) {
         _updateInitValue();
@@ -256,10 +272,10 @@ class _SearchAutocompleteState<T> extends State<SearchAutocomplete<T>>
 
   @override
   void dispose() {
-    _overlayEntry?.remove();
+    _removeOverlay();
     _controller.removeListener(_filterOptions);
     _controller.dispose();
-    _optionsStrCtr.close();
+    _positionForm.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -283,32 +299,27 @@ class _SearchAutocompleteState<T> extends State<SearchAutocomplete<T>>
   }
 
   Widget _buildDropdown() {
-    return StreamBuilder<List<T>>(
-      stream: _optionsStrCtr.stream,
-      builder: (context, snapshot) {
-        final options = snapshot.data ?? widget.options;
+    final options = widget.options;
 
-        if (options.isEmpty) {
-          return widget.emptyDropDown?.call(_controller, _removeOverlay) ??
-              const SizedBox.shrink();
-        }
+    if (options.isEmpty) {
+      return widget.emptyDropDown?.call(_controller, _removeOverlay) ??
+          const SizedBox.shrink();
+    }
 
-        final child = widget.dropDownBuilder?.call(
-              options,
-              _onSelect,
-              _controller,
-            ) ??
-            DefaultDropDown<T>(
-              options: options,
-              onSelected: _onSelect,
-              getString: widget.getString,
-            );
-
-        return ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 200),
-          child: child,
+    final child = widget.dropDownBuilder?.call(
+          options,
+          _onSelect,
+          _controller,
+        ) ??
+        DefaultDropDown<T>(
+          options: options,
+          onSelected: _onSelect,
+          getString: widget.getString,
         );
-      },
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 200),
+      child: child,
     );
   }
 }

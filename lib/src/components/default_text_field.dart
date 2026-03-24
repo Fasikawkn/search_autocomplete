@@ -85,8 +85,8 @@ class DefaultTextField extends StatelessWidget {
   /// This function dynamically changes the suffix icon based on the `showDropdown` flag.
   Widget _buildSuffixIcon() {
     final icon = showDropdown
-        ? Icons.arrow_drop_down_outlined
-        : Icons.arrow_drop_up_outlined;
+        ? Icons.arrow_drop_up_outlined
+        : Icons.arrow_drop_down_outlined;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 0, 16, 0),

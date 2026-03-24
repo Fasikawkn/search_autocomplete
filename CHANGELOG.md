@@ -1,3 +1,8 @@
+## 1.0.3
+
+- Update example project to Flutter 3.16, migrate Android Gradle files to Kotlin DSL
+- Improve dropdown overlay management, position tracking, and fix icon direction.
+
 ## 1.0.2
 
 - Fixed readme

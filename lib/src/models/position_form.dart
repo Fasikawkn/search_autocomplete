@@ -97,5 +97,5 @@ class PositionForm {
   ///
   /// The hash code is computed based on the `bottomLeft` and `bottomRight` offsets.
   @override
-  int get hashCode => (bottomLeft + bottomRight).hashCode;
+  int get hashCode => Object.hash(size, bottomLeft, bottomRight);
 }

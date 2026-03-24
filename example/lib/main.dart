@@ -11,58 +11,41 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 30, 50),
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: const SearchPage(),
-        builder: (context, child) {
-          return DecoratedBox(
-            decoration: const BoxDecoration(color: Colors.blueGrey),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                LayoutBuilder(builder: (_, ctx) {
-                  return SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.redAccent.withValues(alpha: 0.2),
-                        border: const Border(
-                          right: BorderSide(width: 0.5),
-                          left: BorderSide(width: 0.5),
-                        ),
-                      ),
-                      constraints: BoxConstraints(
-                        minHeight: ctx.maxHeight,
-                        maxWidth: 450,
-                      ),
-                      child: IntrinsicHeight(child: child),
-                    ),
-                  );
-                }),
-                const Align(
-                  alignment: Alignment.bottomRight,
-                  child: Material(
-                    child: Text(
-                      '12345 text',
-                      style: TextStyle(fontSize: 24),
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: const SearchPage(),
+      builder: (context, child) {
+        return DecoratedBox(
+          decoration: const BoxDecoration(color: Colors.blueGrey),
+          child: LayoutBuilder(
+            builder: (_, ctx) {
+              return SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent.withValues(alpha: 0.2),
+                    border: const Border(
+                      right: BorderSide(width: 0.5),
+                      left: BorderSide(width: 0.5),
                     ),
                   ),
+                  constraints: BoxConstraints(
+                    minHeight: ctx.maxHeight,
+                    maxWidth: 450,
+                  ),
+                  child: IntrinsicHeight(child: child),
                 ),
-              ],
-            ),
-          );
-        },
-      ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }
 
 class SearchPage extends StatefulWidget {
-  const SearchPage({
-    super.key,
-  });
+  const SearchPage({super.key});
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -82,12 +65,13 @@ class _SearchPageState extends State<SearchPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Search Example')),
       body: StreamBuilder<SearchState>(
-          stream: _cubit.stream,
-          builder: (context, snapshot) {
-            final state = snapshot.data ?? _cubit.state;
+        stream: _cubit.stream,
+        builder: (context, snapshot) {
+          final state = snapshot.data ?? _cubit.state;
 
-            return _buildContent(state);
-          }),
+          return _buildContent(state);
+        },
+      ),
     );
   }
 

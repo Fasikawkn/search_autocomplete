@@ -9,7 +9,10 @@
 cd "$(dirname "$0")/.."
 
 # Your comments for the changelog split by "/"
-comments=("Fixed readme")
+comments=(
+    "Update example project to Flutter 3.16, migrate Android Gradle files to Kotlin DSL"
+    "Improve dropdown overlay management, position tracking, and fix icon direction."
+)
 
 # Increment the version number
 echo -e "\033[32mIncrementing the version number...\033[0m"
