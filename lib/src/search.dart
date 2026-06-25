@@ -74,6 +74,12 @@ class SearchAutocomplete<T> extends StatefulWidget {
   final Widget Function(TextEditingController controller, VoidCallback close)?
       emptyDropDown;
 
+  /// Maximum dropdown height when space below the field allows it.
+  final double maxDropdownHeight;
+
+  /// Padding subtracted from available space below the field.
+  final double dropdownBottomPadding;
+
   /// Creates a `SearchAutocomplete` widget.
   const SearchAutocomplete({
     super.key,
@@ -86,6 +92,8 @@ class SearchAutocomplete<T> extends StatefulWidget {
     this.onSelected,
     this.hintText,
     this.emptyDropDown,
+    this.maxDropdownHeight = 400,
+    this.dropdownBottomPadding = 8,
   });
 
   @override
@@ -101,6 +109,20 @@ class _SearchAutocompleteState<T> extends State<SearchAutocomplete<T>>
   OverlayEntry? _overlayEntry;
 
   final _positionForm = ValueNotifier(const PositionForm());
+  double _lastViewInsetBottom = 0;
+
+  double _availableDropdownHeight(
+    BuildContext overlayContext,
+    PositionForm fieldPosition,
+  ) {
+    final mediaQuery = MediaQuery.of(overlayContext);
+    final spaceBelow = mediaQuery.size.height -
+        fieldPosition.bottomLeft.dy -
+        mediaQuery.viewInsets.bottom -
+        widget.dropdownBottomPadding;
+
+    return spaceBelow.clamp(0.0, widget.maxDropdownHeight);
+  }
 
   void _insertOverlay(BuildContext context) {
     final previousEntry = _overlayEntry;
@@ -140,7 +162,7 @@ class _SearchAutocompleteState<T> extends State<SearchAutocomplete<T>>
                             basePosition: pos,
                             child: Material(
                               color: Colors.transparent,
-                              child: _buildDropdown(),
+                              child: _buildDropdown(layerCtx, positionForm),
                             ),
                           ),
                         ],
@@ -237,6 +259,13 @@ class _SearchAutocompleteState<T> extends State<SearchAutocomplete<T>>
   void _onFrameCallback(Duration timeStamp) {
     if (!_trackingPosition || !mounted) return;
     _updatePosition();
+
+    final viewInsetBottom = MediaQuery.viewInsetsOf(context).bottom;
+    if (viewInsetBottom != _lastViewInsetBottom) {
+      _lastViewInsetBottom = viewInsetBottom;
+      _overlayEntry?.markNeedsBuild();
+    }
+
     WidgetsBinding.instance.scheduleFrameCallback(_onFrameCallback);
   }
 
@@ -261,7 +290,7 @@ class _SearchAutocompleteState<T> extends State<SearchAutocomplete<T>>
     super.didUpdateWidget(oldWidget);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (oldWidget.options != widget.options && _showDropdown) {
+      if (_showDropdown) {
         _overlayEntry?.markNeedsBuild();
       }
       if (oldWidget.initValue != widget.initValue) {
@@ -298,27 +327,29 @@ class _SearchAutocompleteState<T> extends State<SearchAutocomplete<T>>
     return child;
   }
 
-  Widget _buildDropdown() {
+  Widget _buildDropdown(BuildContext overlayContext, PositionForm fieldPosition) {
+    final maxHeight = _availableDropdownHeight(overlayContext, fieldPosition);
     final options = widget.options;
 
+    final Widget child;
     if (options.isEmpty) {
-      return widget.emptyDropDown?.call(_controller, _removeOverlay) ??
+      child = widget.emptyDropDown?.call(_controller, _removeOverlay) ??
           const SizedBox.shrink();
+    } else {
+      child = widget.dropDownBuilder?.call(
+            options,
+            _onSelect,
+            _controller,
+          ) ??
+          DefaultDropDown<T>(
+            options: options,
+            onSelected: _onSelect,
+            getString: widget.getString,
+          );
     }
 
-    final child = widget.dropDownBuilder?.call(
-          options,
-          _onSelect,
-          _controller,
-        ) ??
-        DefaultDropDown<T>(
-          options: options,
-          onSelected: _onSelect,
-          getString: widget.getString,
-        );
-
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxHeight: 200),
+      constraints: BoxConstraints(maxHeight: maxHeight),
       child: child,
     );
   }
